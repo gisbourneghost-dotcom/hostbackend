@@ -1,5 +1,5 @@
 {
-  "name": "hosthustlr",
+  "name": "hostbackend",
   "version": "1.0.0",
   "main": "server.js",
   "type": "module",
@@ -17,4 +17,5 @@
     "mongoose": "^9.0.1",
     "multer": "^2.0.2"
   }
+
 }
