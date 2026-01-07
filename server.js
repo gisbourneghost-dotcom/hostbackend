@@ -65,7 +65,7 @@ const productSchema = new mongoose.Schema({
   productBrand: String,
   productPrice: String,
   imageUrl: String,
-  ownerphone: String,
+  productownerphone: String,
   createdAt: { type: Date, default: Date.now },
 });
 
@@ -74,9 +74,9 @@ const Product = mongoose.model("Product", productSchema);
 const orderSchema = new mongoose.Schema({
   productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
   productSnapshot: Object,
-  buyerName: String,
-  buyerPhone: String,
-  message: String,
+  Jinalamnunuzi: String,
+  SimuNambayamnunuzi: String,
+  Message: String,
   createdAt: { type: Date, default: Date.now },
 });
 
@@ -240,7 +240,7 @@ app.get("/api/products", async (req, res) => {
 
 
 // ---------- CREATE PRODUCT ----------
-app.post("/api/products", checkAdminHeader, upload.single("image"), async (req, res) => {
+app.post("/api/products", auth, checkAdminHeader, upload.single("image"), async (req, res) => {
     try {
         let imageUrl = req.body.imageUrl || null;
 
@@ -253,6 +253,8 @@ app.post("/api/products", checkAdminHeader, upload.single("image"), async (req, 
         }
 
         const product = await Product.create({
+            ownerId: req.userId,
+            productownerphone: req.user.ownerphone,
             productName: req.body.productName,
             productDescription: req.body.productDescription,
             productSize: req.body.productSize,
@@ -271,11 +273,11 @@ app.post("/api/products", checkAdminHeader, upload.single("image"), async (req, 
 app.put("/api/products/:id", checkAdminHeader, upload.single("image"), async (req, res) => {
     try {
         let updates = {
-            productName: req.body.name,
-            productDescription: req.body.description,
-            productSize: req.body.size,
-            productBrand: req.body.brand,
-            productPrice: req.body.price,
+             productName: req.body.productName,
+            productDescription: req.body.productDescription,
+            productSize: req.body.productSize,
+            productBrand: req.body.productBrand,
+            productPrice: req.body.productPrice,
         };
 
         if (req.file) {
@@ -311,45 +313,52 @@ app.delete("/api/products/:id", checkAdminHeader, async (req, res) => {
 // -------- CHECKOUT --------
 app.post("/api/checkout", async (req, res) => {
   try {
-    const { productId, buyerName, buyerPhone, message } = req.body;
-    if (!productId || !buyerPhone) return res.status(400).json({ error: "Missing productId or buyerPhone" });
+    const { productId, Jinalamnunuzi, SimuNambayamnunuzi, DeliveryLocation, Message } = req.body;
+    if (!productId || !buyerPhone) {
+      return res.status(400).json({ error: "Weka Namba yako ya Simu" });
+    }
 
     const product = await Product.findById(productId).lean();
-    if (!product) return res.status(404).json({ error: "Product not found" });
-
+    if (!product) {
+      return res.status(404).json({ success:false, error: "Bidhaa haijapatikana" });
+    }
+      
     const ownerNumber = product.ownerphone || "";
 
     const order = await Order.create({
       productId,
       productSnapshot: product,
-      buyerName,
-      buyerPhone,
-      message,
+      Jinalamnunuzi,
+      SimuNambayamnunuzi,
+      DeliveryLocation,
+      Message,
     });
 
-    if (!ownerNumber) return res.json({ ok: true, order, whatsappUrl: null });
-
-    const digitsOnly = ownerNumber.replace(/[^\d]/g, "");
+    if (!ownerphone) {
+      return res.json({ success: true, order, whatsappUrl: null });
+    } 
+    const digitsOnly = ownerphone.replace(/[^\d]/g, "");
 
     const textParts = [
-      `Hello, I'm interested in your product: ${product.name}`,
-      `Price: ${product.price} TZS`,
-      buyerName ? `Buyer: ${buyerName}` : "",
-      buyerPhone ? `Contact: ${buyerPhone}` : "",
-      message ? `Message: ${message}` : "",
+      `Order: ${product.productName}`,
+      `Price: ${product.productPrice} TZS`,
+      Jinalamnunuzi ? `Buyer: ${Jinalamnunuzi}` : "",
+      SimuNambayamnunuzi? `Contact: ${SimuNambayamnunuzi}` : "",
+      Message ? `Message: ${Message}` : "",
     ].filter(Boolean);
 
     const text = encodeURIComponent(textParts.join(" • "));
     const whatsappUrl = `https://wa.me/${digitsOnly}?text=${text}`;
 
-    res.json({ ok: true, order, whatsappUrl });
+    res.json({ success: true, order, whatsappUrl });
   } catch (err) {
     console.error("Checkout error:", err);
-    res.status(500).json({ error: "Checkout failed" });
+    res.status(500).json({ success:false, error: "Jaribu tena order imefeli" });
   }
 });
 
 // --- Start
 
 app.listen(PORT, () => console.log(`Server listening on https://hosthustlr.onrender.com`));
+
 
