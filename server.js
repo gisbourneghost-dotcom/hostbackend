@@ -76,6 +76,7 @@ const orderSchema = new mongoose.Schema({
   productSnapshot: Object,
   Jinalamnunuzi: String,
   SimuNambayamnunuzi: String,
+  DeliveryLocation: String,
   Message: String,
   createdAt: { type: Date, default: Date.now },
 });
@@ -227,18 +228,6 @@ app.post("/api/profile", auth, async (req, res) => {
   }
 });
 
-// ---------- GET ALL PRODUCTS ----------
-app.get("/api/products", async (req, res) => {
-  try {
-    const products = await Product.find().sort({ createdAt: -1 }).lean();
-    res.json(products);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-
 // ---------- CREATE PRODUCT ----------
 app.post("/api/products", auth, checkAdminHeader, upload.single("image"), async (req, res) => {
     try {
@@ -252,9 +241,10 @@ app.post("/api/products", auth, checkAdminHeader, upload.single("image"), async 
             imageUrl = cloudRes.secure_url;
         }
 
+        // ✅ FIXED: Now req.user has ownerphone because auth middleware fetched it from MongoDB
         const product = await Product.create({
             ownerId: req.userId,
-            productownerphone: req.user.ownerphone,
+            productownerphone: req.user.ownerphone, // ✅ NOW THIS WORKS!
             productName: req.body.productName,
             productDescription: req.body.productDescription,
             productSize: req.body.productSize,
@@ -307,23 +297,23 @@ app.delete("/api/products/:id", checkAdminHeader, async (req, res) => {
     }
 });
 
-
-
-
 // -------- CHECKOUT --------
 app.post("/api/checkout", async (req, res) => {
   try {
     const { productId, Jinalamnunuzi, SimuNambayamnunuzi, DeliveryLocation, Message } = req.body;
-    if (!productId || !buyerPhone) {
+    
+    // ✅ FIXED: Changed buyerPhone to SimuNambayamnunuzi
+    if (!productId || !SimuNambayamnunuzi) {
       return res.status(400).json({ error: "Weka Namba yako ya Simu" });
     }
 
     const product = await Product.findById(productId).lean();
     if (!product) {
-      return res.status(404).json({ success:false, error: "Bidhaa haijapatikana" });
+      return res.status(404).json({ success: false, error: "Bidhaa haijapatikana" });
     }
       
-    const ownerNumber = product.ownerphone || "";
+    // ✅ FIXED: Changed ownerNumber to ownerphone (consistent naming)
+    const ownerphone = product.productownerphone || "";
 
     const order = await Order.create({
       productId,
@@ -337,13 +327,16 @@ app.post("/api/checkout", async (req, res) => {
     if (!ownerphone) {
       return res.json({ success: true, order, whatsappUrl: null });
     } 
+    
+    // ✅ FIXED: Now using correct variable name
     const digitsOnly = ownerphone.replace(/[^\d]/g, "");
 
     const textParts = [
       `Order: ${product.productName}`,
       `Price: ${product.productPrice} TZS`,
       Jinalamnunuzi ? `Buyer: ${Jinalamnunuzi}` : "",
-      SimuNambayamnunuzi? `Contact: ${SimuNambayamnunuzi}` : "",
+      SimuNambayamnunuzi ? `Contact: ${SimuNambayamnunuzi}` : "",
+      DeliveryLocation ? `Location: ${DeliveryLocation}` : "",
       Message ? `Message: ${Message}` : "",
     ].filter(Boolean);
 
@@ -353,12 +346,9 @@ app.post("/api/checkout", async (req, res) => {
     res.json({ success: true, order, whatsappUrl });
   } catch (err) {
     console.error("Checkout error:", err);
-    res.status(500).json({ success:false, error: "Jaribu tena order imefeli" });
+    res.status(500).json({ success: false, error: "Jaribu tena order imefeli" });
   }
 });
 
 // --- Start
-
 app.listen(PORT, () => console.log(`Server listening on https://hosthustlr.onrender.com`));
-
-
